@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,6 +22,7 @@ var (
 	moveScuQueueMessageCountDesc          = prometheus.NewDesc("dcm4chee2_movescu_queue_message_count", "The number of messages in the queue.", []string{}, nil)
 	moveScuQueueDeliveringCountDesc       = prometheus.NewDesc("dcm4chee2_movescu_queue_delivering_count", "The number of messages currently being delivered.", []string{}, nil)
 	moveScuQueueScheduledMessageCountDesc = prometheus.NewDesc("dcm4chee2_movescu_queue_scheduled_message_count", "The number of scheduled messages in the queue.", []string{}, nil)
+	scrapeDurationSeconds                 = prometheus.NewDesc("dcm4chee2_scrape_duration_seconds", "Duration of backend response in seconds.", []string{}, nil)
 )
 
 // jmxServer provides access to a JMX server.
@@ -58,11 +60,13 @@ func (c collector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect metrics.
 func (c collector) Collect(ch chan<- prometheus.Metric) {
+	start := time.Now()
 	output, err := c.jmx.Fetch()
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(0))
 		return
 	}
+	ch <- prometheus.MustNewConstMetric(scrapeDurationSeconds, prometheus.GaugeValue, float64(time.Since(start).Seconds()))
 	metrics := Translate(output)
 	ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(1))
 	if m, ok := metrics["MessageCount"]; ok {
