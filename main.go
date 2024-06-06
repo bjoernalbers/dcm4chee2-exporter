@@ -88,6 +88,7 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	output, err := c.jmx.Fetch()
 	if err != nil {
+		log.Printf("Fetching metrics failed: %v\n", err)
 		ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(0))
 		return
 	}
@@ -130,6 +131,7 @@ func main() {
 	flag.StringVar(&jmx.Password, "p", "admin", "Password of JBoss admin")
 	address := flag.String("a", ":9404", "Address to listen on")
 	flag.Parse()
+	log.Printf("Starting dcm4chee2-exporter, version %s\n", version)
 	prometheus.MustRegister(&collector{jmx})
 	http.Handle(metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +146,5 @@ func main() {
 </html>
 `))
 	})
-	log.Printf("Starting dcm4chee2-exporter, version %s\n", version)
 	log.Fatal(http.ListenAndServe(*address, nil))
 }
