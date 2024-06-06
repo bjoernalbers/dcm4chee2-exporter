@@ -2,46 +2,35 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"log"
 	"net/http"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// All metrics collected from JMX server.
 var (
-	moveScuQueueMessageCountDesc = prometheus.NewDesc("dcm4chee2_movescu_queue_message_count", "The number of messages in the queue.", []string{}, nil)
-	dcm4chee2Up                  = prometheus.NewDesc("dcm4chee2_up", "Availability of Dcm4chee 2.", []string{}, nil)
+	dcm4chee2Up                           = prometheus.NewDesc("dcm4chee2_up", "Availability of Dcm4chee 2.", []string{}, nil)
+	moveScuQueueMessageCountDesc          = prometheus.NewDesc("dcm4chee2_movescu_queue_message_count", "The number of messages in the queue.", []string{}, nil)
+	moveScuQueueDeliveringCountDesc       = prometheus.NewDesc("dcm4chee2_movescu_queue_delivering_count", "The number of messages currently being delivered.", []string{}, nil)
+	moveScuQueueScheduledMessageCountDesc = prometheus.NewDesc("dcm4chee2_movescu_queue_scheduled_message_count", "The number of scheduled messages in the queue.", []string{}, nil)
 )
 
-type collector struct {
-	jmx jmxServer
-}
-
-func (c collector) Describe(ch chan<- *prometheus.Desc) {
-	prometheus.DescribeByCollect(c, ch)
-}
-
-func (c collector) Collect(ch chan<- prometheus.Metric) {
-	_, err := c.jmx.Fetch()
-	if err != nil {
-		ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(0))
-		return
-	}
-	ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(1))
-	// TODO: Un-dummy this metric!
-	ch <- prometheus.MustNewConstMetric(moveScuQueueMessageCountDesc, prometheus.GaugeValue, float64(42))
-}
-
+// jmxServer provides access to a JMX server.
 type jmxServer struct {
 	Script   string
 	Username string
 	Password string
 }
 
-// Fetch metrics from JMX server
+// Fetch returns metrics from the JMX server.
 func (j jmxServer) Fetch() ([]byte, error) {
 	return exec.Command(
 		j.Script,
@@ -55,6 +44,54 @@ func (j jmxServer) Fetch() ([]byte, error) {
 		"DeliveringCount",
 		"ScheduledMessageCount",
 	).Output()
+}
+
+// collector collects metrics for Prometheus.
+type collector struct {
+	jmx jmxServer
+}
+
+// Describe metrics.
+func (c collector) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(c, ch)
+}
+
+// Collect metrics.
+func (c collector) Collect(ch chan<- prometheus.Metric) {
+	output, err := c.jmx.Fetch()
+	if err != nil {
+		ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(0))
+		return
+	}
+	metrics := Translate(output)
+	ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(1))
+	if m, ok := metrics["MessageCount"]; ok {
+		ch <- prometheus.MustNewConstMetric(moveScuQueueMessageCountDesc, prometheus.GaugeValue, float64(m))
+	}
+	if m, ok := metrics["DeliveringCount"]; ok {
+		ch <- prometheus.MustNewConstMetric(moveScuQueueDeliveringCountDesc, prometheus.GaugeValue, float64(m))
+	}
+	if m, ok := metrics["ScheduledMessageCount"]; ok {
+		ch <- prometheus.MustNewConstMetric(moveScuQueueScheduledMessageCountDesc, prometheus.GaugeValue, float64(m))
+	}
+}
+
+// Translate metrics from JMX server into map
+func Translate(in []byte) map[string]int {
+	metrics := map[string]int{}
+	scanner := bufio.NewScanner(bytes.NewReader(in))
+	for scanner.Scan() {
+		key, value, found := strings.Cut(scanner.Text(), "=")
+		if !found {
+			continue
+		}
+		metric, err := strconv.Atoi(value)
+		if err != nil {
+			continue
+		}
+		metrics[key] = metric
+	}
+	return metrics
 }
 
 func main() {
