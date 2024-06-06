@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
@@ -18,14 +19,36 @@ import (
 
 const metricsPath = "/metrics"
 
-// All metrics collected from JMX server.
 var (
+	version  = "unset" // version gets set via build flags
+	homepage = "https://github.com/bjoernalbers/dcm4chee2-exporter"
+
+	// All metrics collected from JMX server.
 	dcm4chee2Up                           = prometheus.NewDesc("dcm4chee2_up", "Availability of Dcm4chee 2.", []string{}, nil)
 	moveScuQueueMessageCountDesc          = prometheus.NewDesc("dcm4chee2_movescu_queue_message_count", "The number of messages in the queue.", []string{}, nil)
 	moveScuQueueDeliveringCountDesc       = prometheus.NewDesc("dcm4chee2_movescu_queue_delivering_count", "The number of messages currently being delivered.", []string{}, nil)
 	moveScuQueueScheduledMessageCountDesc = prometheus.NewDesc("dcm4chee2_movescu_queue_scheduled_message_count", "The number of scheduled messages in the queue.", []string{}, nil)
 	scrapeDurationSeconds                 = prometheus.NewDesc("dcm4chee2_scrape_duration_seconds", "Duration of backend response in seconds.", []string{}, nil)
 )
+
+func init() {
+	flag.Usage = usage
+}
+
+func usage() {
+	header := fmt.Sprintf(`Dcm4chee 2 Prometheus Exporter (version %s)
+
+This exporter exposes metrics from (deprecated) dcm4chee 2 for Prometheus.
+
+Usage:
+`, version)
+	footer := fmt.Sprintf(`
+Homepage: %s
+`, homepage)
+	fmt.Fprintf(flag.CommandLine.Output(), header)
+	flag.PrintDefaults()
+	fmt.Fprintf(flag.CommandLine.Output(), footer)
+}
 
 // jmxServer provides access to a JMX server.
 type jmxServer struct {
