@@ -16,6 +16,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const metricsPath = "/metrics"
+
 // All metrics collected from JMX server.
 var (
 	dcm4chee2Up                           = prometheus.NewDesc("dcm4chee2_up", "Availability of Dcm4chee 2.", []string{}, nil)
@@ -106,6 +108,18 @@ func main() {
 	address := flag.String("a", ":9404", "Address to listen on")
 	flag.Parse()
 	prometheus.MustRegister(&collector{jmx})
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle(metricsPath, promhttp.Handler())
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html>
+	<head>
+		<title>Dcm4chee 2 Prometheus Exporter</title>
+	</head>
+	<body>
+		<h1>Dcm4chee 2 Prometheus Exporter</h1>
+		<p><a href='` + metricsPath + `'>Metrics</a></p>
+	</body>
+</html>
+`))
+	})
 	log.Fatal(http.ListenAndServe(*address, nil))
 }
