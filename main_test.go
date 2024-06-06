@@ -7,9 +7,12 @@ import (
 
 func TestToMap(t *testing.T) {
 	in := []byte(`
+# A comment
 MessageCount=3
 DeliveringCount=0
 ScheduledMessageCount=3
+
+foo=bar
 `)
 	got := Translate(in)
 	want := map[string]int{"MessageCount": 3,
