@@ -144,5 +144,6 @@ func main() {
 </html>
 `))
 	})
+	log.Printf("Starting dcm4chee2-exporter, version %s\n", version)
 	log.Fatal(http.ListenAndServe(*address, nil))
 }
