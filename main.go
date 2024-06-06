@@ -103,8 +103,9 @@ func main() {
 	flag.StringVar(&jmx.Script, "s", "twiddle.sh", "Path to JBoss twiddle script")
 	flag.StringVar(&jmx.Username, "u", "admin", "Username of JBoss admin")
 	flag.StringVar(&jmx.Password, "p", "admin", "Password of JBoss admin")
+	address := flag.String("a", ":9404", "Address to listen on")
 	flag.Parse()
 	prometheus.MustRegister(&collector{jmx})
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":9404", nil))
+	log.Fatal(http.ListenAndServe(*address, nil))
 }
