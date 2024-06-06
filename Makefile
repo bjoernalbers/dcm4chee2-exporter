@@ -1,4 +1,6 @@
+VERSION := $(shell git describe --tags | tr -d v)
+
 .PHONY: all
 all:
 	go test ./...
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
+	go build -ldflags '-X main.version=$(VERSION)'
