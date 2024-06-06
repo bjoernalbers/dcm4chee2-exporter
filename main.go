@@ -67,8 +67,8 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationSeconds, prometheus.GaugeValue, float64(time.Since(start).Seconds()))
-	metrics := Translate(output)
 	ch <- prometheus.MustNewConstMetric(dcm4chee2Up, prometheus.GaugeValue, float64(1))
+	metrics := Translate(output)
 	if m, ok := metrics["MessageCount"]; ok {
 		ch <- prometheus.MustNewConstMetric(moveScuQueueMessageCountDesc, prometheus.GaugeValue, float64(m))
 	}
